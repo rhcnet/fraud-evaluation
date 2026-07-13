@@ -144,3 +144,24 @@ Inicia o processo de avaliação de risco de uma transação. Possui mecanismo d
   "transaction-id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
 }
 ```
+### 2. Consulta Status da Transação (GET)
+
+Retorna o estado atual de processamento e o resultado da validação de fraude de uma transação específica.
+
+* **URL:** `/transactions/{id}`
+* **Método:** `GET`
+* **URL Params:**
+  * `id` [GUID] *(Obrigatório)*: Identificador único da transação (`TransactionId`).
+
+#### Resposta (Response)
+
+* **Código HTTP:** `200 OK`
+
+**Payload de Retorno (JSON):**
+```json
+{
+  "TransactionId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "ValidationStatus": "APPROVED",
+  "TransactionStatus": "Processed"
+}
+```
