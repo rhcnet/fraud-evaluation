@@ -71,9 +71,9 @@ graph TD
     RB -- "5 Consome Evento" --> Worker[Worker]
     Worker -- "6 Regras externas" --> Ext[Provedores Externos]
     Worker -- "7 Atualiza Status" --> DB
-
+```
 B. Diagrama de Sequência
-Fluxo 1
+Solicitação de transação
 ```mermaid
 sequenceDiagram
     participant C as Cliente
@@ -87,8 +87,8 @@ sequenceDiagram
     A->>DB: Registra Transação    
     A->>Q: Publica Evento
     A-->>C: 202 Accepted
-
-Fluxo 2
+```
+Processamento do Worker
 ```mermaid
 sequenceDiagram
     participant Q as Message Broker
@@ -99,8 +99,8 @@ sequenceDiagram
     W->>W: Regras Internas
     W->>ES: Serviços Externos    
     W->>DB: Atualizar Status
-
-Fluxo 3
+```
+Consulta status da transação
 ```mermaid
 sequenceDiagram
     participant C as Cliente
@@ -110,3 +110,4 @@ sequenceDiagram
     C->>A: GET /transactions (transaction-id)
     A->>DB: Consulta Transação    
     A-->>C: 200 OK (validation status e transaction status)
+```
