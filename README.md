@@ -1,2 +1,72 @@
-# fraud-evaluation
-Serviço de avaliação de fraude
+# 🛡️ Serviço de Avaliação Antifraude — Proposta Arquitetural
+
+Este repositório contém a proposta de arquitetura para o **Serviço de Avaliação Antifraude**, uma solução projetada para o processamento de transações financeiras em relação ao risco de fraude, com foco em **alta disponibilidade**, **segurança** e **rastreabilidade**.
+
+---
+
+## 1. Visão Geral da Solução
+
+A arquitetura adota o modelo **Orientado a Eventos (Event-Driven Architecture)** para garantir o desacoplamento entre a solicitação e a análise da transação.
+
+### Componentes Principais
+
+| Componente | Tecnologia | Função |
+| :--- | :--- | :--- |
+| **API Antifraude** | `.NET` | Ponto de entrada (REST) para recebimento de transações e consulta de status. |
+| **Message Broker** | `RabbitMQ` | Gerenciamento da fila de transações para processamento assíncrono. |
+| **Worker de Análise** | `.NET` | Executor das regras de negócio e integrações externas para validação. |
+| **Cache** | `Redis` | Camada em memória de alta performance para controle de idempotência. |
+| **Banco de Dados** | `PostgreSQL` | Persistência das informações para relatórios e auditoria. |
+
+---
+
+## 2. Fluxo de Ponta a Ponta (Happy Path)
+
+O fluxo principal de processamento assíncrono ocorre conforme os passos abaixo:
+
+1. **Envio da Transação:** O *Cliente* envia uma *transação* para validação através da *API*.
+2. **Validação e Persistência Inicial:** A *API* valida a idempotência da solicitação, registra a *transação* com status inicial no *Banco de Dados* e publica um evento no *Message Broker*.
+3. **Retorno Imediato:** O *ID da transação* é retornado ao *Cliente*. O processamento segue de forma assíncrona.
+4. **Consumo & Regras:** O *Worker de Análise* consome o evento do *Message Broker* e executa o motor de regras (internas e de parceiros externos).
+5. **Persistência do Resultado:** O resultado da análise (Aprovado/Rejeitado) é atualizado no *Banco de Dados**.
+6. **Consulta:** O *Cliente* consulta o resultado final na *API* utilizando o *ID da transação* recebido no passo 3.
+
+---
+
+## 3. Pontos de Resiliência
+
+Para garantir que o sistema seja tolerante a falhas e opere sem perdas de mensagens, foram desenhados os seguintes mecanismos:
+
+* **Retry e Backoff:** Tentativas consecutivas com espaçamento de tempo crescente em chamadas a APIs externas e banco de dados para mitigar instabilidades temporárias.
+* **Dead Letter Queue (DLQ):** Mensagens que excedem o limite de retentativas são movidas para uma fila de erro isolada. Isso permite análise posterior, correção de bugs e posterior reprocessamento (replay de mensagens).
+* **Mecanismo de Fallback:** Se uma API parceira crítica estiver indisponível, a transação é direcionada para uma fila de **análise manual**. Isso evita o travamento do fluxo operacional e garante que a auditoria seja realizada de forma segura.
+
+---
+
+## 4. Idempotência e Deduplicação
+
+Para evitar reprocessamento e cobranças duplicadas, o sistema atua em duas camadas:
+
+* **Camada de Cache (Fast Path):** Verificação rápida e atômica no *Cache* utilizando a chave `idempotency-key` enviada no cabeçalho da requisição.
+* **Constraint no Banco de Dados (Safety Net):** Uma restrição de unicidade (`UNIQUE CONSTRAINT`) no PostgreSQL garante a consistência e integridade final na camada de persistência.
+
+---
+
+## 5. Observabilidade
+
+O sistema foi desenhado para permitir o monitoramento, utilizando três pilares fundamentais:
+
+* **Métricas:** Acompanhamento em tempo real de KPIs de negócio e infraestrutura (ex: taxa de aprovação/rejeição, vazão e latência de processamento).
+* **Logs Estruturados:** Emissão de logs em formato JSON enriquecidos com `TransactionId` e `CorrelationId` para facilitar buscas em agregadores de log (Elasticsearch/Splunk).
+* **Distributed Tracing:** Implementação de `OpenTelemetry` para rastrear toda a jornada de uma transação. Utilizando o `CorrelationId`, é possível mapear o caminho desde a solicitação na API até a execução do processamento em background pelo Worker.
+
+## 6. Diagramas
+1 Envio da transação
+graph TD
+    Client[Cliente] -- "1 Envia Transação" --> API[API]
+    API -- "2 Deduplicação" --> Redis[(Cache)]
+    API -- "3 Registra transação" --> DB[(Banco de Dados)]
+    API -- "4 Publica Evento" --> RB[Message Broker]
+    RB -- "5 Consome Evento" --> Worker[Worker]
+    Worker -- "6 Regras externas" --> Ext[Provedores Externos]
+    Worker -- "7 Atualiza Status" --> DB
