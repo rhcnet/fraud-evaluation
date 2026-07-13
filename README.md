@@ -61,7 +61,7 @@ O sistema foi desenhado para permitir o monitoramento, utilizando três pilares 
 * **Distributed Tracing:** Implementação de `OpenTelemetry` para rastrear toda a jornada de uma transação. Utilizando o `CorrelationId`, é possível mapear o caminho desde a solicitação na API até a execução do processamento em background pelo Worker.
 
 ## 6. Diagramas
-1 Envio da transação
+A. Diagrama de Componentes
 ```mermaid
 graph TD
     Client[Cliente] -- "1 Envia Transação" --> API[API]
@@ -71,3 +71,42 @@ graph TD
     RB -- "5 Consome Evento" --> Worker[Worker]
     Worker -- "6 Regras externas" --> Ext[Provedores Externos]
     Worker -- "7 Atualiza Status" --> DB
+
+B. Diagrama de Sequência
+Fluxo 1
+```mermaid
+sequenceDiagram
+    participant C as Cliente
+    participant A as API
+    participant R as Cache
+    participant DB as Banco de Dados    
+    participant Q as Message Broker
+    
+    C->>A: POST /transactions (idempotency-key)
+    A->>R: Verifica Idempotencia
+    A->>DB: Registra Transação    
+    A->>Q: Publica Evento
+    A-->>C: 202 Accepted
+
+Fluxo 2
+```mermaid
+sequenceDiagram
+    participant Q as Message Broker
+    participant W as Worker
+    participant ES as Servico Externo    
+    participant DB as Banco de Dados    
+    Q->>W: Consome Evento
+    W->>W: Regras Internas
+    W->>ES: Serviços Externos    
+    W->>DB: Atualizar Status
+
+Fluxo 3
+```mermaid
+sequenceDiagram
+    participant C as Cliente
+    participant A as API
+    participant DB as Banco de Dados    
+
+    C->>A: GET /transactions (transaction-id)
+    A->>DB: Consulta Transação    
+    A-->>C: 200 OK (validation status e transaction status)
