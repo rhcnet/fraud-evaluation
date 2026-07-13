@@ -112,7 +112,7 @@ sequenceDiagram
     A-->>C: 200 OK (validation status e transaction status)
 ```
 ## 7. Decisões Arquiteturais (ADRs)
-TODO
+[Ir para a pasta de ADRs](./adrs)
 
 ## 8. Contrato de API
 ### 1. Solicitar Análise de Fraude (POST)
