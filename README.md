@@ -28,7 +28,7 @@ O fluxo principal de processamento assíncrono ocorre conforme os passos abaixo:
 2. **Validação e Persistência Inicial:** A *API* valida a idempotência da solicitação, registra a *transação* com status inicial no *Banco de Dados* e publica um evento no *Message Broker*.
 3. **Retorno Imediato:** O *ID da transação* é retornado ao *Cliente*. O processamento segue de forma assíncrona.
 4. **Consumo & Regras:** O *Worker de Análise* consome o evento do *Message Broker* e executa o motor de regras (internas e de parceiros externos).
-5. **Persistência do Resultado:** O resultado da análise (Aprovado/Rejeitado) é atualizado no *Banco de Dados**.
+5. **Persistência do Resultado:** O resultado da análise (Aprovado/Rejeitado) é atualizado no *Banco de Dados*.
 6. **Consulta:** O *Cliente* consulta o resultado final na *API* utilizando o *ID da transação* recebido no passo 3.
 
 ---
@@ -47,8 +47,8 @@ Para garantir que o sistema seja tolerante a falhas e opere sem perdas de mensag
 
 Para evitar reprocessamento e cobranças duplicadas, o sistema atua em duas camadas:
 
-* **Camada de Cache (Fast Path):** Verificação rápida e atômica no *Cache* utilizando a chave `idempotency-key` enviada no cabeçalho da requisição.
-* **Constraint no Banco de Dados (Safety Net):** Uma restrição de unicidade (`UNIQUE CONSTRAINT`) no PostgreSQL garante a consistência e integridade final na camada de persistência.
+* **Camada de Cache:** Verificação rápida e atômica no *Cache* utilizando a chave `idempotency-key` enviada no cabeçalho da requisição.
+* **Constraint no Banco de Dados (Safety Net):** Uma restrição de unicidade no *Banco de Dados* garante a consistência e integridade final na camada de persistência.
 
 ---
 
@@ -115,4 +115,32 @@ sequenceDiagram
 TODO
 
 ## 8. Contrato de API
-TODO
+### 1. Solicitar Análise de Fraude (POST)
+
+Inicia o processo de avaliação de risco de uma transação. Possui mecanismo de idempotência.
+
+* **URL:** `/transactions`
+* **Método:** `POST`
+* **Headers:**
+    * `Idempotency-Key`: `String (GUID)` *(Obrigatório)*
+
+#### Parâmetros do Payload (Request)
+
+| Campo | Tipo | Descrição | Exemplo |
+| :--- | :--- | :--- | :--- |
+| `TaxId` | String | Apenas números (CPF/CNPJ do cliente) | `12345678901` |
+| `Amount` | Decimal | Valor da transação | `250.50` |
+| `Currency` | String | Código da moeda (2 caracteres): `R$` (Real), `U$` (Dólar), `E$` (Euro) | `R$` |
+
+#### Respostas (Response)
+
+* **`202 Accepted`**: Retornado quando a transação é recebida com sucesso e entra na fila de processamento.
+* **`200 OK`**: Retornado caso a `Idempotency-Key` já tenha sido processada anteriormente (busca realizada no Cache Service).
+* **`400 Bad Request`**: Retornado se o header `Idempotency-Key` estiver ausente ou for inválido.
+
+**Exemplo de Corpo da Resposta (200 ou 202):**
+```json
+{
+  "transaction-id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+}
+```
