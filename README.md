@@ -62,6 +62,7 @@ O sistema foi desenhado para permitir o monitoramento, utilizando três pilares 
 
 ## 6. Diagramas
 1 Envio da transação
+```mermaid
 graph TD
     Client[Cliente] -- "1 Envia Transação" --> API[API]
     API -- "2 Deduplicação" --> Redis[(Cache)]
