@@ -111,8 +111,8 @@ sequenceDiagram
     A->>DB: Consulta Transação    
     A-->>C: 200 OK (validation status e transaction status)
 ```
-7. Decisões Arquiteturais (ADRs)
+## 7. Decisões Arquiteturais (ADRs)
 TODO
 
-8. Contrato de API
+## 8. Contrato de API
 TODO
