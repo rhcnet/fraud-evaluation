@@ -1,7 +1,10 @@
 using System;
+using System;
 using MediatR;
+using FraudEvaluation.Application.Common;
 
 namespace FraudEvaluation.Application.Queries
 {
-    public record GetTransactionStatusQuery(Guid TransactionId) : IRequest<GetTransactionStatusResult?>;
+    // Accept raw string id so handler can validate and return Result with ErrorCode
+    public record GetTransactionStatusQuery(string TransactionId) : IRequest<Result<GetTransactionStatusResult>>;
 }

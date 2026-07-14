@@ -1,12 +1,14 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using FraudEvaluation.Application.Queries;
 using FraudEvaluation.Domain.Repositories;
+using FraudEvaluation.Application.Common;
 
 namespace FraudEvaluation.Application.Handlers
 {
-    public class GetTransactionStatusHandler : IRequestHandler<GetTransactionStatusQuery, GetTransactionStatusResult?>
+    public class GetTransactionStatusHandler : IRequestHandler<GetTransactionStatusQuery, Result<GetTransactionStatusResult>>
     {
         private readonly ITransactionRepository _repo;
 
@@ -15,15 +17,22 @@ namespace FraudEvaluation.Application.Handlers
             _repo = repo;
         }
 
-        public async Task<GetTransactionStatusResult?> Handle(GetTransactionStatusQuery request, CancellationToken cancellationToken)
+        public async Task<Result<GetTransactionStatusResult>> Handle(GetTransactionStatusQuery request, CancellationToken cancellationToken)
         {
-            var entity = await _repo.GetByIdAsync(request.TransactionId);
-            if (entity == null)
+            // Validate id format
+            if (!Guid.TryParse(request.TransactionId, out var guid))
             {
-                return null;
+                return Result.Fail<GetTransactionStatusResult>("Invalid id format.", ErrorCode.InvalidId);
             }
 
-            return new GetTransactionStatusResult(entity.Id, entity.ValidationStatus, entity.TransactionStatus);
+            var entity = await _repo.GetByIdAsync(guid);
+            if (entity == null)
+            {
+                return Result.NotFound<GetTransactionStatusResult>("Transaction not found");
+            }
+
+            var result = new GetTransactionStatusResult(entity.Id, entity.ValidationStatus, entity.TransactionStatus);
+            return Result.Ok(result);
         }
     }
 }
