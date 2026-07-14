@@ -138,6 +138,24 @@ app.MapPost("/fraud-evaluations", async (TransactionRequest req, HttpRequest htt
 })
 .WithName("SubmitFraudEvaluation");
 
+// GET endpoint: consulta status da transação
+app.MapGet("/transactions/{id}", async (string id, IMediator mediator) =>
+{
+    if (!Guid.TryParse(id, out var guid))
+    {
+        return Results.BadRequest(new { error = "Invalid id format." });
+    }
+
+    var result = await mediator.Send(new FraudEvaluation.Application.Queries.GetTransactionStatusQuery(guid));
+    if (result == null)
+    {
+        return Results.NotFound();
+    }
+
+    return Results.Ok(new { transactionId = result.TransactionId, validationStatus = result.ValidationStatus, transactionStatus = result.TransactionStatus });
+})
+.WithName("GetTransactionStatus");
+
 app.Run();
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
