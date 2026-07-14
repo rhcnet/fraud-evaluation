@@ -1,25 +1,16 @@
-using System.Text;
-using System.Text.Json;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using System.Text;
+using System.Text.Json;
 
 namespace FraudEvaluation.Worker;
 
-public class RabbitMqConsumer : BackgroundService
+public class RabbitMqConsumer(ILogger<RabbitMqConsumer> logger, IConfiguration configuration) : BackgroundService
 {
-    private readonly ILogger<RabbitMqConsumer> _logger;
-    private readonly IConfiguration _configuration;
+    private readonly ILogger<RabbitMqConsumer> _logger = logger;
+    private readonly IConfiguration _configuration = configuration;
     private IConnection? _connection;
     private IModel? _channel;
-
-    public RabbitMqConsumer(ILogger<RabbitMqConsumer> logger, IConfiguration configuration)
-    {
-        _logger = logger;
-        _configuration = configuration;
-    }
 
     public override Task StartAsync(CancellationToken cancellationToken)
     {

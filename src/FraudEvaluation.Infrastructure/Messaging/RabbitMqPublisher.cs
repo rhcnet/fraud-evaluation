@@ -1,8 +1,6 @@
-using System;
-using System.Text;
-using System.Threading.Tasks;
-using RabbitMQ.Client;
 using FraudEvaluation.Application.Interfaces;
+using RabbitMQ.Client;
+using System.Text;
 
 namespace FraudEvaluation.Infrastructure.Messaging
 {
@@ -38,7 +36,7 @@ namespace FraudEvaluation.Infrastructure.Messaging
                 _channel?.Close();
                 _connection?.Close();
             }
-            catch {}
+            catch { }
         }
     }
 }

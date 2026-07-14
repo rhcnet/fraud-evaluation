@@ -1,9 +1,5 @@
-using System.Reflection;
-using MediatR;
-using Microsoft.AspNetCore.Http;
-using FraudEvaluation.Application.Common;
 using FraudEvaluation.API.Endpoints;
-using FraudEvaluation.API.Extensions;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,12 +32,7 @@ if (app.Environment.IsDevelopment())
     try
     {
         var scalarAssembly = AppDomain.CurrentDomain.GetAssemblies()
-            .FirstOrDefault(a => string.Equals(a.GetName().Name, "Scalar.AspNetCore", StringComparison.OrdinalIgnoreCase));
-        if (scalarAssembly == null)
-        {
-            scalarAssembly = Assembly.Load("Scalar.AspNetCore");
-        }
-
+            .FirstOrDefault(a => string.Equals(a.GetName().Name, "Scalar.AspNetCore", StringComparison.OrdinalIgnoreCase)) ?? Assembly.Load("Scalar.AspNetCore");
         if (scalarAssembly != null)
         {
             var extensionMethods = scalarAssembly.GetTypes()
@@ -78,39 +69,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// POST endpoint: submit fraud evaluation request
-app.MapPost("/fraud-evaluations", async (TransactionRequest req, HttpRequest httpReq, IMediator mediator) =>
-{
-    // Check Idempotency-Key header
-    if (!httpReq.Headers.TryGetValue("Idempotency-Key", out var idempotencyValues) || string.IsNullOrWhiteSpace(idempotencyValues))
-    {
-        return Results.BadRequest(new { error = "Missing Idempotency-Key header." });
-    }
-
-    var idempotencyKey = idempotencyValues.ToString();
-
-    // Business parameter validation moved to handler. Keep Idempotency-Key and IP checks at endpoint as requested.
-
-    var ip = httpReq.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
-
-    var command = new FraudEvaluation.Application.Commands.SubmitFraudEvaluationCommand(idempotencyKey, ip, req.TaxId, req.Amount, req.Currency);
-    var result = await mediator.Send(command);
-
-    return result.ToIResult(value =>
-    {
-        if (value.AlreadyExists)
-        {
-            return Results.Ok(new { transactionId = value.TransactionId });
-        }
-
-        return Results.Accepted($"/transactions/{value.TransactionId}", new { transactionId = value.TransactionId });
-    });
-})
-.WithName("SubmitFraudEvaluation");
-
 // Map transaction-related endpoints
 app.MapTransactionEndpoints();
 
 app.Run();
-
-record TransactionRequest(string TaxId, decimal Amount, string Currency);
