@@ -1,4 +1,5 @@
 using FraudEvaluation.Application.Commands;
+using FraudEvaluation.Application.Common;
 using FraudEvaluation.Application.Interfaces;
 using FraudEvaluation.Domain.Entities;
 using FraudEvaluation.Domain.Repositories;
@@ -7,42 +8,23 @@ using System.Text.Json;
 
 namespace FraudEvaluation.Application.Handlers
 {
-    public class SubmitFraudEvaluationHandler(ICacheService cache, ITransactionRepository repo, IMessagePublisher publisher) : IRequestHandler<SubmitFraudEvaluationCommand, FraudEvaluation.Application.Common.Result<SubmitFraudEvaluationResult>>
+    public class SubmitFraudEvaluationHandler(ICacheService cache, ITransactionRepository repo, IMessagePublisher publisher) : IRequestHandler<SubmitFraudEvaluationCommand, Result<SubmitFraudEvaluationResult>>
     {
         private readonly ICacheService _cache = cache;
         private readonly ITransactionRepository _repo = repo;
         private readonly IMessagePublisher _publisher = publisher;
         private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(1);
 
-        public async Task<FraudEvaluation.Application.Common.Result<SubmitFraudEvaluationResult>> Handle(SubmitFraudEvaluationCommand request, CancellationToken cancellationToken)
+        public async Task<Result<SubmitFraudEvaluationResult>> Handle(SubmitFraudEvaluationCommand request, CancellationToken cancellationToken)
         {
-            // Validate business parameters (moved from endpoint)
-            if (string.IsNullOrWhiteSpace(request.TaxId) || !request.TaxId.All(char.IsDigit))
+            // Validate request using a centralized validator
+            var validation = Validators.SubmitFraudEvaluationValidator.Validate(request);
+            if (!validation.IsSuccess)
             {
-                return FraudEvaluation.Application.Common.Result.Fail<SubmitFraudEvaluationResult>("TaxId must contain only digits.", FraudEvaluation.Application.Common.ErrorCode.ValidationFailed);
+                return Result.Fail<SubmitFraudEvaluationResult>(validation.Error ?? "Validation failed", validation.Code);
             }
 
-            if (request.Amount <= 0)
-            {
-                return FraudEvaluation.Application.Common.Result.Fail<SubmitFraudEvaluationResult>("Amount must be greater than zero.", FraudEvaluation.Application.Common.ErrorCode.ValidationFailed);
-            }
-
-            // Validate currency using domain ValueObject
-            FraudEvaluation.Domain.ValueObjects.Currency currencyVo;
-            try
-            {
-                currencyVo = FraudEvaluation.Domain.ValueObjects.Currency.Create(request.Currency);
-            }
-            catch (FraudEvaluation.Domain.DomainException dex)
-            {
-                return FraudEvaluation.Application.Common.Result.Fail<SubmitFraudEvaluationResult>(dex.Message, FraudEvaluation.Application.Common.ErrorCode.ValidationFailed);
-            }
-
-            // Validate idempotency key format
-            if (!Guid.TryParse(request.IdempotencyKey, out _))
-            {
-                return FraudEvaluation.Application.Common.Result.Fail<SubmitFraudEvaluationResult>("Idempotency-Key must be a valid GUID.", FraudEvaluation.Application.Common.ErrorCode.InvalidId);
-            }
+            var currencyVo = validation.Value!;
 
             // Check cache for idempotency key
             var cached = await _cache.GetAsync(request.IdempotencyKey);
@@ -50,7 +32,7 @@ namespace FraudEvaluation.Application.Handlers
             {
                 if (Guid.TryParse(cached, out var existingId))
                 {
-                    return FraudEvaluation.Application.Common.Result.Ok(new SubmitFraudEvaluationResult(existingId, true));
+                    return Result.Ok(new SubmitFraudEvaluationResult(existingId, true));
                 }
             }
 
@@ -79,7 +61,7 @@ namespace FraudEvaluation.Application.Handlers
             var payload = JsonSerializer.Serialize(new { transactionId = entity.Id, entity.TaxId, entity.Amount, currency = entity.Currency.Code });
             await _publisher.PublishAsync("fraud.evaluation.request", payload);
 
-            return FraudEvaluation.Application.Common.Result.Ok(new SubmitFraudEvaluationResult(entity.Id, false));
+            return Result.Ok(new SubmitFraudEvaluationResult(entity.Id, false));
         }
     }
 }
