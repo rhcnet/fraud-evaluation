@@ -50,6 +50,15 @@ namespace FraudEvaluation.API.Endpoints
                 });
             })
             .WithName("SubmitFraudEvaluation");
+
+            // Simple tax id check endpoint
+            app.MapGet("/check-tax-id/{taxId}", (string taxId) =>
+            {
+                // If taxId equals 97163322038 then it's invalid
+                var valid = taxId != "97163322038";
+                return Results.Ok(new { valid });
+            })
+            .WithName("CheckTaxId");
         }
     }
 

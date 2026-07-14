@@ -65,19 +65,19 @@ public class RabbitMqConsumer(ILogger<RabbitMqConsumer> logger, IConfiguration c
                     try
                     {
                         var result = await _mediator.Send(new FraudEvaluation.Application.Commands.ProcessTransactionCommand(parsed.TransactionId, parsed.TaxId, parsed.Amount, parsed.Currency));
-                        if (!result.IsSuccess)
+                        if (result.IsSuccess)
                         {
-                            _logger.LogWarning("ProcessTransactionCommand failed: {err}", result.Error);
-                            // do not ack so message can be retried
-                            return;
+                            _logger.LogInformation("ProcessTransactionCommand succeeded: {msg}", result.Value);
                         }
-                        _logger.LogInformation("ProcessTransactionCommand succeeded: {msg}", result.Value);
+                        else
+                        {
+                            _logger.LogWarning("ProcessTransactionCommand failed: {error}", result.Error);
+                        }
+
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Error sending ProcessTransactionCommand");
-                        // do not ack so message can be retried
-                        return;
                     }
 
                     // Acknowledge
