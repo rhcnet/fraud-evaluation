@@ -49,38 +49,19 @@ public class RabbitMqConsumer(ILogger<RabbitMqConsumer> logger, IConfiguration c
                 var message = Encoding.UTF8.GetString(body);
                 _logger.LogInformation("Received message: {msg}", message);
 
-                // Try parse JSON
-                try
+                // Parse JSON into a typed object
+                var parsed = ParseMessage(message);
+                if (parsed == null)
                 {
-                    using var doc = JsonDocument.Parse(message);
-                    var root = doc.RootElement;
-                    var txId = root.GetProperty("transactionId").GetGuid();
-                    var taxId = root.GetProperty("taxId").GetString();
-                    var amount = root.GetProperty("amount").GetDecimal();
-                    var currency = root.GetProperty("currency").GetString();
-                    // Use domain value object for currency
-                    string currencyCode = currency ?? "BRL";
-                    try
-                    {
-                        var currencyVo = FraudEvaluation.Domain.ValueObjects.Currency.Create(currencyCode);
-                        currencyCode = currencyVo.Code;
-                    }
-                    catch
-                    {
-                        // fallback to BRL if invalid
-                        currencyCode = "BRL";
-                    }
-
-                    _logger.LogInformation("Processing transaction {tx} - TaxId {tax} Amount {amount} {currency}", txId, taxId, amount, currencyCode);
-                    // TODO: implement processing logic (call DB, call services, etc.)
+                    _logger.LogWarning("Failed to parse message JSON");
                 }
-                catch (Exception ex)
+                else
                 {
-                    _logger.LogWarning(ex, "Failed to parse message JSON");
-                }
+                    _logger.LogInformation("Processing transaction {tx} - TaxId {tax} Amount {amount} {currency}", parsed.TransactionId, parsed.TaxId, parsed.Amount, parsed.CurrencyCode);
 
-                // Acknowledge
-                _channel.BasicAck(ea.DeliveryTag, multiple: false);
+                    // Acknowledge
+                    _channel.BasicAck(ea.DeliveryTag, multiple: false);
+                }
             }
             catch (Exception ex)
             {
@@ -107,5 +88,54 @@ public class RabbitMqConsumer(ILogger<RabbitMqConsumer> logger, IConfiguration c
         }
 
         return base.StopAsync(cancellationToken);
+    }
+
+    // Parses incoming JSON message and returns a typed object on success, otherwise null
+    private ParsedTransaction? ParseMessage(string message)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(message);
+            var root = doc.RootElement;
+            var txId = root.GetProperty("transactionId").GetGuid();
+            var taxId = root.GetProperty("TaxId").GetString();
+            var amount = root.GetProperty("Amount").GetDecimal();
+            var currency = root.GetProperty("currency").GetString();
+
+            // Use domain value object for currency
+            string currencyCode = currency ?? "BRL";
+            FraudEvaluation.Domain.ValueObjects.Currency currencyVo;
+            try
+            {
+                currencyVo = FraudEvaluation.Domain.ValueObjects.Currency.Create(currencyCode);
+            }
+            catch
+            {
+                currencyVo = FraudEvaluation.Domain.ValueObjects.Currency.Create("BRL");
+            }
+
+            return new ParsedTransaction(txId, taxId ?? string.Empty, amount, currencyVo);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private sealed class ParsedTransaction
+    {
+        public Guid TransactionId { get; }
+        public string TaxId { get; }
+        public decimal Amount { get; }
+        public FraudEvaluation.Domain.ValueObjects.Currency Currency { get; }
+        public string CurrencyCode => Currency.Code;
+
+        public ParsedTransaction(Guid transactionId, string taxId, decimal amount, FraudEvaluation.Domain.ValueObjects.Currency currency)
+        {
+            TransactionId = transactionId;
+            TaxId = taxId;
+            Amount = amount;
+            Currency = currency;
+        }
     }
 }

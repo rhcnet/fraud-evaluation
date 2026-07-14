@@ -1,6 +1,8 @@
 using FraudEvaluation.API.Extensions;
 using FraudEvaluation.Application.Queries;
 using MediatR;
+using Microsoft.AspNetCore.Mvc;
+using System.Xml.Linq;
 
 namespace FraudEvaluation.API.Endpoints
 {
@@ -22,15 +24,13 @@ namespace FraudEvaluation.API.Endpoints
             .WithName("GetTransactionStatus");
 
             // POST endpoint: submit fraud evaluation request
-            app.MapPost("/fraud-evaluations", async (TransactionRequest req, HttpRequest httpReq, IMediator mediator) =>
+            app.MapPost("/fraud-evaluations", async (TransactionRequest req, [FromHeader(Name = "Idempotency-Key")] string idempotencyKey, HttpRequest httpReq, IMediator mediator) =>
             {
                 // Check Idempotency-Key header
-                if (!httpReq.Headers.TryGetValue("Idempotency-Key", out var idempotencyValues) || string.IsNullOrWhiteSpace(idempotencyValues))
+                if (string.IsNullOrWhiteSpace(idempotencyKey))
                 {
                     return Results.BadRequest(new { error = "Missing Idempotency-Key header." });
                 }
-
-                var idempotencyKey = idempotencyValues.ToString();
 
                 // Business parameter validation moved to handler. Keep Idempotency-Key and IP checks at endpoint as requested.
 
