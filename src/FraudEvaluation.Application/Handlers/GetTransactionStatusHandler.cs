@@ -1,10 +1,7 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using MediatR;
+using FraudEvaluation.Application.Common;
 using FraudEvaluation.Application.Queries;
 using FraudEvaluation.Domain.Repositories;
-using FraudEvaluation.Application.Common;
+using MediatR;
 
 namespace FraudEvaluation.Application.Handlers
 {
@@ -12,10 +9,7 @@ namespace FraudEvaluation.Application.Handlers
     {
         private readonly ITransactionRepository _repo;
 
-        public GetTransactionStatusHandler(ITransactionRepository repo)
-        {
-            _repo = repo;
-        }
+        public GetTransactionStatusHandler(ITransactionRepository repo) => _repo = repo;
 
         public async Task<Result<GetTransactionStatusResult>> Handle(GetTransactionStatusQuery request, CancellationToken cancellationToken)
         {
