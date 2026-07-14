@@ -7,7 +7,7 @@ namespace FraudEvaluation.Domain.Entities
         public string Ip { get; set; } = null!;
         public string TaxId { get; set; } = null!;
         public decimal Amount { get; set; }
-        public string Currency { get; set; } = null!;
+        public FraudEvaluation.Domain.ValueObjects.Currency Currency { get; set; } = FraudEvaluation.Domain.ValueObjects.Currency.Create("BRL");
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         public ValidationStatus? ValidationStatus { get; set; }

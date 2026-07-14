@@ -38,6 +38,17 @@ namespace FraudEvaluation.Infrastructure.Repositories
                 ts = parsedTs;
             }
 
+            // Map currency string to Currency value object
+            FraudEvaluation.Domain.ValueObjects.Currency currencyVo;
+            try
+            {
+                currencyVo = FraudEvaluation.Domain.ValueObjects.Currency.Create((string)row.currency);
+            }
+            catch
+            {
+                currencyVo = FraudEvaluation.Domain.ValueObjects.Currency.Create("BRL");
+            }
+
             return new TransactionEntity
             {
                 Id = (Guid)row.id,
@@ -45,7 +56,7 @@ namespace FraudEvaluation.Infrastructure.Repositories
                 Ip = (string)row.ip,
                 TaxId = (string)row.tax_id,
                 Amount = (decimal)row.amount,
-                Currency = (string)row.currency,
+                Currency = currencyVo,
                 CreatedAt = (DateTime)row.created_at,
                 UpdatedAt = (DateTime)row.updated_at,
                 ValidationStatus = vs,
@@ -75,6 +86,17 @@ namespace FraudEvaluation.Infrastructure.Repositories
                 ts = parsedTs;
             }
 
+            // Map currency string to Currency value object
+            FraudEvaluation.Domain.ValueObjects.Currency currencyVo;
+            try
+            {
+                currencyVo = FraudEvaluation.Domain.ValueObjects.Currency.Create((string)row.currency);
+            }
+            catch
+            {
+                currencyVo = FraudEvaluation.Domain.ValueObjects.Currency.Create("BRL");
+            }
+
             return new TransactionEntity
             {
                 Id = (Guid)row.id,
@@ -82,7 +104,7 @@ namespace FraudEvaluation.Infrastructure.Repositories
                 Ip = (string)row.ip,
                 TaxId = (string)row.tax_id,
                 Amount = (decimal)row.amount,
-                Currency = (string)row.currency,
+                Currency = currencyVo,
                 CreatedAt = (DateTime)row.created_at,
                 UpdatedAt = (DateTime)row.updated_at,
                 ValidationStatus = vs,
@@ -120,7 +142,7 @@ VALUES (@Id, @IdempotencyKey, @Ip, @TaxId, @Amount, @Currency, @CreatedAt, @Upda
                 Ip = entity.Ip,
                 TaxId = entity.TaxId,
                 Amount = entity.Amount,
-                Currency = entity.Currency,
+                Currency = entity.Currency.Code,
                 CreatedAt = entity.CreatedAt,
                 UpdatedAt = entity.UpdatedAt,
                 ValidationStatus = entity.ValidationStatus?.ToString(),

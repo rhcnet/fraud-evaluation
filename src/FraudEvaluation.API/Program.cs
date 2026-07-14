@@ -87,37 +87,27 @@ app.MapPost("/fraud-evaluations", async (TransactionRequest req, HttpRequest htt
     }
 
     var idempotencyKey = idempotencyValues.ToString();
-    if (!Guid.TryParse(idempotencyKey, out _))
-    {
-        return Results.BadRequest(new { error = "Idempotency-Key must be a valid GUID." });
-    }
 
-    if (string.IsNullOrWhiteSpace(req.TaxId) || !req.TaxId.All(char.IsDigit))
-    {
-        return Results.BadRequest(new { error = "TaxId must contain only digits." });
-    }
-
-    if (req.Amount <= 0)
-    {
-        return Results.BadRequest(new { error = "Amount must be greater than zero." });
-    }
-
-    if (string.IsNullOrWhiteSpace(req.Currency) || req.Currency.Length != 2 || !(req.Currency == "R$" || req.Currency == "U$" || req.Currency == "E$"))
-    {
-        return Results.BadRequest(new { error = "Currency must be one of: R$, U$, E$." });
-    }
+    // Business parameter validation moved to handler. Keep Idempotency-Key and IP checks at endpoint as requested.
 
     var ip = httpReq.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
 
     var command = new FraudEvaluation.Application.Commands.SubmitFraudEvaluationCommand(idempotencyKey, ip, req.TaxId, req.Amount, req.Currency);
-    var result = await mediator.Send(command);
-
-    if (result.AlreadyExists)
+    try
     {
-        return Results.Ok(new { transactionId = result.TransactionId });
-    }
+        var result = await mediator.Send(command);
 
-    return Results.Accepted($"/transactions/{result.TransactionId}", new { transactionId = result.TransactionId });
+        if (result.AlreadyExists)
+        {
+            return Results.Ok(new { transactionId = result.TransactionId });
+        }
+
+        return Results.Accepted($"/transactions/{result.TransactionId}", new { transactionId = result.TransactionId });
+    }
+    catch (FraudEvaluation.Application.Common.ValidationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
 })
 .WithName("SubmitFraudEvaluation");
 

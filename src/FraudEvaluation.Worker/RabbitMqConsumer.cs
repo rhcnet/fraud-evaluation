@@ -67,8 +67,20 @@ public class RabbitMqConsumer : BackgroundService
                     var taxId = root.GetProperty("taxId").GetString();
                     var amount = root.GetProperty("amount").GetDecimal();
                     var currency = root.GetProperty("currency").GetString();
+                    // Use domain value object for currency
+                    string currencyCode = currency ?? "BRL";
+                    try
+                    {
+                        var currencyVo = FraudEvaluation.Domain.ValueObjects.Currency.Create(currencyCode);
+                        currencyCode = currencyVo.Code;
+                    }
+                    catch
+                    {
+                        // fallback to BRL if invalid
+                        currencyCode = "BRL";
+                    }
 
-                    _logger.LogInformation("Processing transaction {tx} - TaxId {tax} Amount {amount} {currency}", txId, taxId, amount, currency);
+                    _logger.LogInformation("Processing transaction {tx} - TaxId {tax} Amount {amount} {currency}", txId, taxId, amount, currencyCode);
                     // TODO: implement processing logic (call DB, call services, etc.)
                 }
                 catch (Exception ex)
