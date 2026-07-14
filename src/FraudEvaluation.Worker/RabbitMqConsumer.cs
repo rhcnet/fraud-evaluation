@@ -2,13 +2,15 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
+using MediatR;
 
 namespace FraudEvaluation.Worker;
 
-public class RabbitMqConsumer(ILogger<RabbitMqConsumer> logger, IConfiguration configuration) : BackgroundService
+public class RabbitMqConsumer(ILogger<RabbitMqConsumer> logger, IConfiguration configuration, IMediator mediator) : BackgroundService
 {
     private readonly ILogger<RabbitMqConsumer> _logger = logger;
     private readonly IConfiguration _configuration = configuration;
+    private readonly IMediator _mediator = mediator;
     private IConnection? _connection;
     private IModel? _channel;
 
@@ -41,7 +43,7 @@ public class RabbitMqConsumer(ILogger<RabbitMqConsumer> logger, IConfiguration c
         }
 
         var consumer = new EventingBasicConsumer(_channel);
-        consumer.Received += (sender, ea) =>
+        consumer.Received += async (sender, ea) =>
         {
             try
             {
@@ -58,6 +60,25 @@ public class RabbitMqConsumer(ILogger<RabbitMqConsumer> logger, IConfiguration c
                 else
                 {
                     _logger.LogInformation("Processing transaction {tx} - TaxId {tax} Amount {amount} {currency}", parsed.TransactionId, parsed.TaxId, parsed.Amount, parsed.CurrencyCode);
+
+                    // Send command to application layer for processing
+                    try
+                    {
+                        var result = await _mediator.Send(new FraudEvaluation.Application.Commands.ProcessTransactionCommand(parsed.TransactionId, parsed.TaxId, parsed.Amount, parsed.Currency));
+                        if (!result.IsSuccess)
+                        {
+                            _logger.LogWarning("ProcessTransactionCommand failed: {err}", result.Error);
+                            // do not ack so message can be retried
+                            return;
+                        }
+                        _logger.LogInformation("ProcessTransactionCommand succeeded: {msg}", result.Value);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error sending ProcessTransactionCommand");
+                        // do not ack so message can be retried
+                        return;
+                    }
 
                     // Acknowledge
                     _channel.BasicAck(ea.DeliveryTag, multiple: false);
