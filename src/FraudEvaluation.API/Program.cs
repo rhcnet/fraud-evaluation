@@ -137,7 +137,7 @@ app.MapGet("/transactions/{id}", async (string id, IMediator mediator) =>
     }
 
     var value = result.Value!;
-    return Results.Ok(new { transactionId = value.TransactionId, validationStatus = value.ValidationStatus, transactionStatus = value.TransactionStatus });
+    return Results.Ok(new { transactionId = value.TransactionId, validationStatus = value.ValidationStatus?.ToString()?.ToUpperInvariant(), transactionStatus = value.TransactionStatus.ToString().ToUpperInvariant() });
 })
 .WithName("GetTransactionStatus");
 

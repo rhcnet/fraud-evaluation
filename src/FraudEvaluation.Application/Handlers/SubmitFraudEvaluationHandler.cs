@@ -48,7 +48,7 @@ namespace FraudEvaluation.Application.Handlers
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 ValidationStatus = null,
-                TransactionStatus = "Processing"
+                TransactionStatus = FraudEvaluation.Domain.Entities.TransactionStatus.Processing
             };
 
             // Save to DB

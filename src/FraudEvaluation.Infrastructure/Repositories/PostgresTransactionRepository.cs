@@ -20,16 +20,74 @@ namespace FraudEvaluation.Infrastructure.Repositories
         {
             using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
-            var sql = "SELECT * FROM transactions WHERE idempotency_key = @Key LIMIT 1";
-            return await conn.QueryFirstOrDefaultAsync<TransactionEntity>(sql, new { Key = idempotencyKey });
+            var sql = "SELECT id, idempotency_key, ip, tax_id, amount, currency, created_at, updated_at, validation_status, transaction_status FROM transactions WHERE idempotency_key = @Key LIMIT 1";
+            var row = await conn.QueryFirstOrDefaultAsync(sql, new { Key = idempotencyKey });
+            if (row == null) return null;
+
+            string? vsStr = row.validation_status;
+            ValidationStatus? vs = null;
+            if (!string.IsNullOrEmpty(vsStr) && Enum.TryParse<ValidationStatus>(vsStr, true, out var parsedVs))
+            {
+                vs = parsedVs;
+            }
+
+            string? tsStr = row.transaction_status;
+            FraudEvaluation.Domain.Entities.TransactionStatus ts = FraudEvaluation.Domain.Entities.TransactionStatus.Processing;
+            if (!string.IsNullOrEmpty(tsStr) && Enum.TryParse<FraudEvaluation.Domain.Entities.TransactionStatus>(tsStr, true, out var parsedTs))
+            {
+                ts = parsedTs;
+            }
+
+            return new TransactionEntity
+            {
+                Id = (Guid)row.id,
+                IdempotencyKey = (string)row.idempotency_key,
+                Ip = (string)row.ip,
+                TaxId = (string)row.tax_id,
+                Amount = (decimal)row.amount,
+                Currency = (string)row.currency,
+                CreatedAt = (DateTime)row.created_at,
+                UpdatedAt = (DateTime)row.updated_at,
+                ValidationStatus = vs,
+                TransactionStatus = ts
+            };
         }
 
         public async Task<TransactionEntity?> GetByIdAsync(Guid id)
         {
             using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
-            var sql = "SELECT * FROM transactions WHERE id = @Id LIMIT 1";
-            return await conn.QueryFirstOrDefaultAsync<TransactionEntity>(sql, new { Id = id });
+            var sql = "SELECT id, idempotency_key, ip, tax_id, amount, currency, created_at, updated_at, validation_status, transaction_status FROM transactions WHERE id = @Id LIMIT 1";
+            var row = await conn.QueryFirstOrDefaultAsync(sql, new { Id = id });
+            if (row == null) return null;
+
+            string? vsStr = row.validation_status;
+            ValidationStatus? vs = null;
+            if (!string.IsNullOrEmpty(vsStr) && Enum.TryParse<ValidationStatus>(vsStr, true, out var parsedVs))
+            {
+                vs = parsedVs;
+            }
+
+            string? tsStr = row.transaction_status;
+            FraudEvaluation.Domain.Entities.TransactionStatus ts = FraudEvaluation.Domain.Entities.TransactionStatus.Processing;
+            if (!string.IsNullOrEmpty(tsStr) && Enum.TryParse<FraudEvaluation.Domain.Entities.TransactionStatus>(tsStr, true, out var parsedTs))
+            {
+                ts = parsedTs;
+            }
+
+            return new TransactionEntity
+            {
+                Id = (Guid)row.id,
+                IdempotencyKey = (string)row.idempotency_key,
+                Ip = (string)row.ip,
+                TaxId = (string)row.tax_id,
+                Amount = (decimal)row.amount,
+                Currency = (string)row.currency,
+                CreatedAt = (DateTime)row.created_at,
+                UpdatedAt = (DateTime)row.updated_at,
+                ValidationStatus = vs,
+                TransactionStatus = ts
+            };
         }
 
         public async Task SaveAsync(TransactionEntity entity)
@@ -55,7 +113,21 @@ namespace FraudEvaluation.Infrastructure.Repositories
             var sql = @"INSERT INTO transactions (id, idempotency_key, ip, tax_id, amount, currency, created_at, updated_at, validation_status, transaction_status)
 VALUES (@Id, @IdempotencyKey, @Ip, @TaxId, @Amount, @Currency, @CreatedAt, @UpdatedAt, @ValidationStatus, @TransactionStatus)";
 
-            await conn.ExecuteAsync(sql, entity);
+            var param = new
+            {
+                Id = entity.Id,
+                IdempotencyKey = entity.IdempotencyKey,
+                Ip = entity.Ip,
+                TaxId = entity.TaxId,
+                Amount = entity.Amount,
+                Currency = entity.Currency,
+                CreatedAt = entity.CreatedAt,
+                UpdatedAt = entity.UpdatedAt,
+                ValidationStatus = entity.ValidationStatus?.ToString(),
+                TransactionStatus = entity.TransactionStatus.ToString()
+            };
+
+            await conn.ExecuteAsync(sql, param);
         }
     }
 }

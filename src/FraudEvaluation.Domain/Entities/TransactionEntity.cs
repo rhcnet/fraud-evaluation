@@ -12,7 +12,7 @@ namespace FraudEvaluation.Domain.Entities
         public string Currency { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
-        public string? ValidationStatus { get; set; }
-        public string TransactionStatus { get; set; } = null!;
+        public ValidationStatus? ValidationStatus { get; set; }
+        public TransactionStatus TransactionStatus { get; set; } = Domain.Entities.TransactionStatus.Processing;
     }
 }
