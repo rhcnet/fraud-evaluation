@@ -1,0 +1,64 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+## Visual Studio - Pastas de Cache e Usuário
+.vs/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa]rm/
+[Aa]rm64/
+bld/
+[Bb]in/
+[Oo]bj/
+*.user
+*.userosscache
+*.sln.docstates
+
+## .NET - Arquivos de Build, Publicação e Pacotes NuGet
+project.lock.json
+project.fragment.lock.json
+artifacts/
+publish/
+bin/
+obj/
+
+## Ferramentas de Teste e Relatórios de Cobertura
+TestResults/
+*.mutant
+*.coverage
+*.coveragexml
+
+## Arquivos de Configuração Local e Segredos (NUNCA envie para o Git)
+appsettings.Development.json
+appsettings.Local.json
+*.usersecrets
+.env
+.env.*
+!.env.example
+
+## Ferramentas de Diagnóstico e Profiling
+*.cpuport
+*.gpustate
+*.hprof
+*.memport
+*.userports
+*.vsp
+*.vspx
+*.vspscc
+*.vspscc.user
+*.sap
+
+## Cache de IDEs de Terceiros (caso use JetBrains Rider ou VS Code às vezes)
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## Logs do Sistema e do Runtime
+*.log
+.crash
