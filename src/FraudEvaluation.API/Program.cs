@@ -1,5 +1,6 @@
 using System.Reflection;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +10,16 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 // Register MediatR handlers from the Application project
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(FraudEvaluation.Application.MediatRMarker).Assembly));
+
+// Register infrastructure services (Redis, Postgres, RabbitMQ) using configuration
+var configuration = builder.Configuration;
+var redisConn = configuration.GetValue<string>("Redis:Connection") ?? "localhost:6379";
+var pgConn = configuration.GetValue<string>("ConnectionStrings:Postgres") ?? "Host=localhost;Database=fraud;Username=postgres;Password=postgres";
+var rabbitConn = configuration.GetValue<string>("RabbitMQ:Connection") ?? "amqp://guest:guest@localhost:5672/";
+
+builder.Services.AddSingleton<FraudEvaluation.Application.Interfaces.ICacheService>(sp => new FraudEvaluation.Infrastructure.Cache.RedisCacheService(redisConn));
+builder.Services.AddScoped<FraudEvaluation.Domain.Repositories.ITransactionRepository>(sp => new FraudEvaluation.Infrastructure.Repositories.PostgresTransactionRepository(pgConn));
+builder.Services.AddSingleton<FraudEvaluation.Application.Interfaces.IMessagePublisher>(sp => new FraudEvaluation.Infrastructure.Messaging.RabbitMqPublisher(rabbitConn));
 
 var app = builder.Build();
 
@@ -63,6 +74,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
 var summaries = new[]
 {
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
@@ -82,9 +94,21 @@ app.MapGet("/weatherforecast", () =>
 })
 .WithName("GetWeatherForecast");
 
-// POST endpoint to receive TaxId (numbers) and Amount (decimal)
-app.MapPost("/transactions", async (TransactionRequest req, IMediator mediator) =>
+// POST endpoint: submit fraud evaluation request
+app.MapPost("/fraud-evaluations", async (TransactionRequest req, HttpRequest httpReq, IMediator mediator) =>
 {
+    // Check Idempotency-Key header
+    if (!httpReq.Headers.TryGetValue("Idempotency-Key", out var idempotencyValues) || string.IsNullOrWhiteSpace(idempotencyValues))
+    {
+        return Results.BadRequest(new { error = "Missing Idempotency-Key header." });
+    }
+
+    var idempotencyKey = idempotencyValues.ToString();
+    if (!Guid.TryParse(idempotencyKey, out _))
+    {
+        return Results.BadRequest(new { error = "Idempotency-Key must be a valid GUID." });
+    }
+
     if (string.IsNullOrWhiteSpace(req.TaxId) || !req.TaxId.All(char.IsDigit))
     {
         return Results.BadRequest(new { error = "TaxId must contain only digits." });
@@ -95,13 +119,24 @@ app.MapPost("/transactions", async (TransactionRequest req, IMediator mediator) 
         return Results.BadRequest(new { error = "Amount must be greater than zero." });
     }
 
-    // Delegate creation to MediatR handler in the Application layer
-    var command = new FraudEvaluation.Application.Commands.CreateTransactionCommand(req.TaxId, req.Amount);
+    if (string.IsNullOrWhiteSpace(req.Currency) || req.Currency.Length != 2 || !(req.Currency == "R$" || req.Currency == "U$" || req.Currency == "E$"))
+    {
+        return Results.BadRequest(new { error = "Currency must be one of: R$, U$, E$." });
+    }
+
+    var ip = httpReq.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
+
+    var command = new FraudEvaluation.Application.Commands.SubmitFraudEvaluationCommand(idempotencyKey, ip, req.TaxId, req.Amount, req.Currency);
     var result = await mediator.Send(command);
 
-    return Results.Created($"/transactions/{result.Id}", result);
+    if (result.AlreadyExists)
+    {
+        return Results.Ok(new { transactionId = result.TransactionId });
+    }
+
+    return Results.Accepted($"/transactions/{result.TransactionId}", new { transactionId = result.TransactionId });
 })
-.WithName("CreateTransaction");
+.WithName("SubmitFraudEvaluation");
 
 app.Run();
 
@@ -110,4 +145,4 @@ record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
 
-record TransactionRequest(string TaxId, decimal Amount);
+record TransactionRequest(string TaxId, decimal Amount, string Currency);

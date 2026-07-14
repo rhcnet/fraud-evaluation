@@ -2,6 +2,15 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FraudEvaluation.Application\FraudEvaluation.Application.csproj" />
+    <ProjectReference Include="..\FraudEvaluation.Domain\FraudEvaluation.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="StackExchange.Redis" Version="3.0.0" />
+    <PackageReference Include="Dapper" Version="2.1.0" />
+    <PackageReference Include="Npgsql" Version="7.2.0" />
+    <PackageReference Include="RabbitMQ.Client" Version="6.5.1" />
+    <PackageReference Include="System.Text.Json" Version="8.0.0" />
   </ItemGroup>
 
   <PropertyGroup>

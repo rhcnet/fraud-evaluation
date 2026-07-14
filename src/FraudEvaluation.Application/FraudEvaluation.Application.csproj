@@ -4,6 +4,7 @@
     <ProjectReference Include="..\FraudEvaluation.Domain\FraudEvaluation.Domain.csproj" />
     <PackageReference Include="MediatR" Version="14.2.0" />
     <!-- MediatR.Extensions.Microsoft.DependencyInjection removed to avoid pulling an older MediatR dependency that conflicts with MediatR v14 -->
+    <!-- no-op patch: preserve project file validity -->
   </ItemGroup>
 
   <PropertyGroup>

@@ -1,0 +1,11 @@
+using System;
+using System.Threading.Tasks;
+
+namespace FraudEvaluation.Application.Interfaces
+{
+    public interface ICacheService
+    {
+        Task<string?> GetAsync(string key);
+        Task SetAsync(string key, string value, TimeSpan? expiry = null);
+    }
+}
