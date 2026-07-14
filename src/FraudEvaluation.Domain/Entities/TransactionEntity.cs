@@ -1,5 +1,3 @@
-using System;
-
 namespace FraudEvaluation.Domain.Entities
 {
     public class TransactionEntity

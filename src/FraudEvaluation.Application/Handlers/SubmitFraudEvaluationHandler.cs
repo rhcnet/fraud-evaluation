@@ -1,12 +1,9 @@
-using System;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
-using MediatR;
 using FraudEvaluation.Application.Commands;
 using FraudEvaluation.Application.Interfaces;
 using FraudEvaluation.Domain.Entities;
 using FraudEvaluation.Domain.Repositories;
+using MediatR;
+using System.Text.Json;
 
 namespace FraudEvaluation.Application.Handlers
 {

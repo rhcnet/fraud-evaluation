@@ -2,6 +2,7 @@ using System.Reflection;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using FraudEvaluation.Application.Common;
+using FraudEvaluation.API.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -120,26 +121,8 @@ app.MapPost("/fraud-evaluations", async (TransactionRequest req, HttpRequest htt
 })
 .WithName("SubmitFraudEvaluation");
 
-// GET endpoint: consulta status da transação
-app.MapGet("/transactions/{id}", async (string id, IMediator mediator) =>
-{
-    var result = await mediator.Send(new FraudEvaluation.Application.Queries.GetTransactionStatusQuery(id));
-
-    if (!result.IsSuccess)
-    {
-        return result.Code switch
-        {
-            ErrorCode.InvalidId => Results.BadRequest(new { error = result.Error ?? "Invalid id" }),
-            ErrorCode.NotFound => Results.NotFound(),
-            ErrorCode.ValidationFailed => Results.UnprocessableEntity(new { error = result.Error }),
-            _ => Results.BadRequest(new { error = result.Error ?? "An error occurred" }),
-        };
-    }
-
-    var value = result.Value!;
-    return Results.Ok(new { transactionId = value.TransactionId, validationStatus = value.ValidationStatus?.ToString()?.ToUpperInvariant(), transactionStatus = value.TransactionStatus.ToString().ToUpperInvariant() });
-})
-.WithName("GetTransactionStatus");
+// Map transaction-related endpoints
+app.MapTransactionEndpoints();
 
 app.Run();
 

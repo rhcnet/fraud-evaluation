@@ -1,7 +1,5 @@
-using System;
-using System;
-using MediatR;
 using FraudEvaluation.Application.Common;
+using MediatR;
 
 namespace FraudEvaluation.Application.Queries
 {
