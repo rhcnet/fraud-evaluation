@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using FraudEvaluation.Application.Common;
 using FraudEvaluation.API.Endpoints;
+using FraudEvaluation.API.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -93,21 +94,17 @@ app.MapPost("/fraud-evaluations", async (TransactionRequest req, HttpRequest htt
     var ip = httpReq.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
 
     var command = new FraudEvaluation.Application.Commands.SubmitFraudEvaluationCommand(idempotencyKey, ip, req.TaxId, req.Amount, req.Currency);
-    try
-    {
-        var result = await mediator.Send(command);
+    var result = await mediator.Send(command);
 
-        if (result.AlreadyExists)
+    return result.ToIResult(value =>
+    {
+        if (value.AlreadyExists)
         {
-            return Results.Ok(new { transactionId = result.TransactionId });
+            return Results.Ok(new { transactionId = value.TransactionId });
         }
 
-        return Results.Accepted($"/transactions/{result.TransactionId}", new { transactionId = result.TransactionId });
-    }
-    catch (FraudEvaluation.Application.Common.ValidationException ex)
-    {
-        return Results.BadRequest(new { error = ex.Message });
-    }
+        return Results.Accepted($"/transactions/{value.TransactionId}", new { transactionId = value.TransactionId });
+    });
 })
 .WithName("SubmitFraudEvaluation");
 

@@ -7,24 +7,24 @@ using System.Text.Json;
 
 namespace FraudEvaluation.Application.Handlers
 {
-    public class SubmitFraudEvaluationHandler(ICacheService cache, ITransactionRepository repo, IMessagePublisher publisher) : IRequestHandler<SubmitFraudEvaluationCommand, SubmitFraudEvaluationResult>
+    public class SubmitFraudEvaluationHandler(ICacheService cache, ITransactionRepository repo, IMessagePublisher publisher) : IRequestHandler<SubmitFraudEvaluationCommand, FraudEvaluation.Application.Common.Result<SubmitFraudEvaluationResult>>
     {
         private readonly ICacheService _cache = cache;
         private readonly ITransactionRepository _repo = repo;
         private readonly IMessagePublisher _publisher = publisher;
         private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(1);
 
-        public async Task<SubmitFraudEvaluationResult> Handle(SubmitFraudEvaluationCommand request, CancellationToken cancellationToken)
+        public async Task<FraudEvaluation.Application.Common.Result<SubmitFraudEvaluationResult>> Handle(SubmitFraudEvaluationCommand request, CancellationToken cancellationToken)
         {
             // Validate business parameters (moved from endpoint)
             if (string.IsNullOrWhiteSpace(request.TaxId) || !request.TaxId.All(char.IsDigit))
             {
-                throw new FraudEvaluation.Application.Common.ValidationException("TaxId must contain only digits.");
+                return FraudEvaluation.Application.Common.Result.Fail<SubmitFraudEvaluationResult>("TaxId must contain only digits.", FraudEvaluation.Application.Common.ErrorCode.ValidationFailed);
             }
 
             if (request.Amount <= 0)
             {
-                throw new FraudEvaluation.Application.Common.ValidationException("Amount must be greater than zero.");
+                return FraudEvaluation.Application.Common.Result.Fail<SubmitFraudEvaluationResult>("Amount must be greater than zero.", FraudEvaluation.Application.Common.ErrorCode.ValidationFailed);
             }
 
             // Validate currency using domain ValueObject
@@ -35,13 +35,13 @@ namespace FraudEvaluation.Application.Handlers
             }
             catch (FraudEvaluation.Domain.DomainException dex)
             {
-                throw new FraudEvaluation.Application.Common.ValidationException(dex.Message);
+                return FraudEvaluation.Application.Common.Result.Fail<SubmitFraudEvaluationResult>(dex.Message, FraudEvaluation.Application.Common.ErrorCode.ValidationFailed);
             }
 
             // Validate idempotency key format
             if (!Guid.TryParse(request.IdempotencyKey, out _))
             {
-                throw new FraudEvaluation.Application.Common.ValidationException("Idempotency-Key must be a valid GUID.");
+                return FraudEvaluation.Application.Common.Result.Fail<SubmitFraudEvaluationResult>("Idempotency-Key must be a valid GUID.", FraudEvaluation.Application.Common.ErrorCode.InvalidId);
             }
 
             // Check cache for idempotency key
@@ -50,7 +50,7 @@ namespace FraudEvaluation.Application.Handlers
             {
                 if (Guid.TryParse(cached, out var existingId))
                 {
-                    return new SubmitFraudEvaluationResult(existingId, true);
+                    return FraudEvaluation.Application.Common.Result.Ok(new SubmitFraudEvaluationResult(existingId, true));
                 }
             }
 
@@ -79,7 +79,7 @@ namespace FraudEvaluation.Application.Handlers
             var payload = JsonSerializer.Serialize(new { transactionId = entity.Id, entity.TaxId, entity.Amount, currency = entity.Currency.Code });
             await _publisher.PublishAsync("fraud.evaluation.request", payload);
 
-            return new SubmitFraudEvaluationResult(entity.Id, false);
+            return FraudEvaluation.Application.Common.Result.Ok(new SubmitFraudEvaluationResult(entity.Id, false));
         }
     }
 }
