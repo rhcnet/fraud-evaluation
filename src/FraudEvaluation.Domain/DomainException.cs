@@ -1,9 +1,6 @@
-using System;
-
 namespace FraudEvaluation.Domain
 {
-    public class DomainException : Exception
+    public class DomainException(string message) : Exception(message)
     {
-        public DomainException(string message) : base(message) { }
     }
 }
