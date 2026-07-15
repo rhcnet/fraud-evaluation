@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/Tests/">
+    <Project Path="FraudEvaluation.Application.Tests/FraudEvaluation.Application.Tests.csproj" />
     <Project Path="FraudEvaluation.Domain.Tests/FraudEvaluation.Domain.Tests.csproj" />
   </Folder>
   <Project Path="FraudEvaluation.API/FraudEvaluation.API.csproj" />
