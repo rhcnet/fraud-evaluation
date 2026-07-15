@@ -3,14 +3,15 @@ using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
 using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FraudEvaluation.Worker;
 
-public class RabbitMqConsumer(ILogger<RabbitMqConsumer> logger, IConfiguration configuration, IMediator mediator) : BackgroundService
+public class RabbitMqConsumer(ILogger<RabbitMqConsumer> logger, IConfiguration configuration, IServiceScopeFactory scopeFactory) : BackgroundService
 {
     private readonly ILogger<RabbitMqConsumer> _logger = logger;
     private readonly IConfiguration _configuration = configuration;
-    private readonly IMediator _mediator = mediator;
+    private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
     private IConnection? _connection;
     private IModel? _channel;
 
@@ -61,27 +62,31 @@ public class RabbitMqConsumer(ILogger<RabbitMqConsumer> logger, IConfiguration c
                 {
                     _logger.LogInformation("Processing transaction {tx} - TaxId {tax} Amount {amount} {currency}", parsed.TransactionId, parsed.TaxId, parsed.Amount, parsed.CurrencyCode);
 
-                    // Send command to application layer for processing
+                    // Send command to application layer for processing inside a scoped provider
                     try
                     {
-                        var result = await _mediator.Send(new FraudEvaluation.Application.Commands.ProcessTransactionCommand(parsed.TransactionId, parsed.TaxId, parsed.Amount, parsed.Currency));
-                        if (result.IsSuccess)
-                        {
-                            _logger.LogInformation("ProcessTransactionCommand succeeded: {msg}", result.Value);
-                        }
-                        else
+                        using var scope = _scopeFactory.CreateScope();
+                        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+                        var result = await mediator.Send(new FraudEvaluation.Application.Commands.ProcessTransactionCommand(parsed.TransactionId, parsed.TaxId, parsed.Amount, parsed.Currency));
+                        if (!result.IsSuccess)
                         {
                             _logger.LogWarning("ProcessTransactionCommand failed: {error}", result.Error);
+                            // do not ack so message can be retried
+                            return;
                         }
 
+                        _logger.LogInformation("ProcessTransactionCommand succeeded: {msg}", result.Value);
+
+                        // Acknowledge only on success
+                        _channel.BasicAck(ea.DeliveryTag, multiple: false);
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Error sending ProcessTransactionCommand");
+                        // do not ack so message can be retried
+                        return;
                     }
-
-                    // Acknowledge
-                    _channel.BasicAck(ea.DeliveryTag, multiple: false);
                 }
             }
             catch (Exception ex)
