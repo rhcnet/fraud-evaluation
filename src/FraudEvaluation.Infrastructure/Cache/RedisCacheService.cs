@@ -7,12 +7,19 @@ namespace FraudEvaluation.Infrastructure.Cache
 {
     public class RedisCacheService : ICacheService
     {
-        private readonly ConnectionMultiplexer _redis;
+        private readonly IConnectionMultiplexer _redis;
         private readonly IDatabase _db;
 
         public RedisCacheService(string configuration)
         {
             _redis = ConnectionMultiplexer.Connect(configuration);
+            _db = _redis.GetDatabase();
+        }
+
+        // Internal constructor for unit testing to inject mocks
+        public RedisCacheService(IConnectionMultiplexer redis)
+        {
+            _redis = redis ?? throw new ArgumentNullException(nameof(redis));
             _db = _redis.GetDatabase();
         }
 

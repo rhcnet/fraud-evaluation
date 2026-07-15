@@ -2,6 +2,7 @@
   <Folder Name="/Tests/">
     <Project Path="FraudEvaluation.Application.Tests/FraudEvaluation.Application.Tests.csproj" />
     <Project Path="FraudEvaluation.Domain.Tests/FraudEvaluation.Domain.Tests.csproj" />
+    <Project Path="FraudEvaluation.Infrastructure.Tests/FraudEvaluation.Infrastructure.Tests.csproj" />
   </Folder>
   <Project Path="FraudEvaluation.API/FraudEvaluation.API.csproj" />
   <Project Path="FraudEvaluation.Application/FraudEvaluation.Application.csproj" />
