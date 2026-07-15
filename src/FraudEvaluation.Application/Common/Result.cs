@@ -1,5 +1,3 @@
-using System;
-
 namespace FraudEvaluation.Application.Common
 {
     public class Result
@@ -16,7 +14,7 @@ namespace FraudEvaluation.Application.Common
         }
 
         public static Result<T> Ok<T>(T value) => new Result<T>(true, null, null, value);
-        public static Result<T> Fail<T>(string error, ErrorCode? errorCode = null) => new Result<T>(false, error, errorCode, default);
+        public static Result<T> Fail<T>(string error, ErrorCode? errorCode = null) => new(false, error, errorCode, default);
         public static Result<T> NotFound<T>(string? message = null) => Fail<T>(message ?? "NotFound", FraudEvaluation.Application.Common.ErrorCode.NotFound);
     }
 
