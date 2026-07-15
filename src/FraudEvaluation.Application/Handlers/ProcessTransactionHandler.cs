@@ -42,7 +42,7 @@ public class ProcessTransactionHandler(ILogger<ProcessTransactionHandler> logger
             transaction.TransactionStatus = TransactionStatus.Processed;
             transaction.UpdatedAt = DateTime.UtcNow;
 
-            await _repo.SaveAsync(transaction);
+            await _repo.UpdateAsync(transaction);
 
             if (validationStatus == ValidationStatus.Approved)
             {

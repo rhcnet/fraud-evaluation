@@ -151,5 +151,39 @@ VALUES (@Id, @IdempotencyKey, @Ip, @TaxId, @Amount, @Currency, @CreatedAt, @Upda
 
             await conn.ExecuteAsync(sql, param);
         }
+
+        public async Task UpdateAsync(TransactionEntity entity)
+        {
+            using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var sql = @"UPDATE transactions SET
+    idempotency_key = @IdempotencyKey,
+    ip = @Ip,
+    tax_id = @TaxId,
+    amount = @Amount,
+    currency = @Currency,
+    created_at = @CreatedAt,
+    updated_at = @UpdatedAt,
+    validation_status = @ValidationStatus,
+    transaction_status = @TransactionStatus
+WHERE id = @Id";
+
+            var param = new
+            {
+                Id = entity.Id,
+                IdempotencyKey = entity.IdempotencyKey,
+                Ip = entity.Ip,
+                TaxId = entity.TaxId,
+                Amount = entity.Amount,
+                Currency = entity.Currency.Code,
+                CreatedAt = entity.CreatedAt,
+                UpdatedAt = entity.UpdatedAt,
+                ValidationStatus = entity.ValidationStatus?.ToString(),
+                TransactionStatus = entity.TransactionStatus.ToString()
+            };
+
+            await conn.ExecuteAsync(sql, param);
+        }
     }
 }

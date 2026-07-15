@@ -9,5 +9,6 @@ namespace FraudEvaluation.Domain.Repositories
         Task<TransactionEntity?> GetByIdempotencyKeyAsync(string idempotencyKey);
         Task<TransactionEntity?> GetByIdAsync(Guid id);
         Task SaveAsync(TransactionEntity entity);
+        Task UpdateAsync(TransactionEntity entity);
     }
 }
