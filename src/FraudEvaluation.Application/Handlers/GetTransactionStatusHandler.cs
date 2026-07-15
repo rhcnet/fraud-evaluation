@@ -13,10 +13,9 @@ namespace FraudEvaluation.Application.Handlers
 
         public async Task<Result<GetTransactionStatusResult>> Handle(GetTransactionStatusQuery request, CancellationToken cancellationToken)
         {
-            // Validate id format
             if (!Guid.TryParse(request.TransactionId, out var guid))
             {
-                return Result.Fail<GetTransactionStatusResult>("Invalid id format.", ErrorCode.InvalidId);
+                return Result.Fail<GetTransactionStatusResult>("Invalid transaction id format.", ErrorCode.InvalidId);
             }
 
             var entity = await _repo.GetByIdAsync(guid);
