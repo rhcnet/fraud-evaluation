@@ -2,6 +2,7 @@ using FraudEvaluation.API.Extensions;
 using FraudEvaluation.Application.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace FraudEvaluation.API.Endpoints
 {
@@ -23,17 +24,19 @@ namespace FraudEvaluation.API.Endpoints
             .WithName("GetTransactionStatus");
 
             // POST endpoint: submit fraud evaluation request
-            app.MapPost("/transactions", async (TransactionRequest req, [FromHeader(Name = "Idempotency-Key")] string idempotencyKey, HttpRequest httpReq, IMediator mediator) =>
+            app.MapPost("/transactions", async (TransactionRequest req, [FromHeader(Name = "Idempotency-Key")] string idempotencyKey, HttpRequest httpReq, IMediator mediator, ILogger<Program> logger) =>
             {
+                // Determine remote IP early so it can be logged on errors
+                var ip = httpReq.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
+
                 // Check Idempotency-Key header
                 if (string.IsNullOrWhiteSpace(idempotencyKey))
                 {
+                    logger.LogWarning("Missing Idempotency-Key header. RemoteIp: {Ip}", ip);
                     return Results.BadRequest(new { error = "Missing Idempotency-Key header." });
                 }
 
                 // Business parameter validation moved to handler. Keep Idempotency-Key and IP checks at endpoint as requested.
-
-                var ip = httpReq.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
 
                 var command = new Application.Commands.SubmitFraudEvaluationCommand(idempotencyKey, ip, req.TaxId, req.Amount, req.Currency);
                 var result = await mediator.Send(command);
@@ -42,9 +45,11 @@ namespace FraudEvaluation.API.Endpoints
                 {
                     if (value.AlreadyExists)
                     {
+                        logger.LogWarning("HTTP 200 OK {TransactionId}", value.TransactionId);
                         return Results.Ok(new { transactionId = value.TransactionId });
                     }
 
+                    logger.LogWarning("HTTP 202 Accepted {TransactionId}", value.TransactionId);
                     return Results.Accepted($"/transactions/{value.TransactionId}", new { transactionId = value.TransactionId });
                 });
             })
