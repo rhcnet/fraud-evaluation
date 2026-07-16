@@ -1,9 +1,9 @@
+using FraudEvaluation.Application.Common;
+using MediatR;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
-using MediatR;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace FraudEvaluation.Worker;
 
@@ -68,7 +68,7 @@ public class RabbitMqConsumer(ILogger<RabbitMqConsumer> logger, IConfiguration c
                         using var scope = _scopeFactory.CreateScope();
                         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
-                        var result = await mediator.Send(new FraudEvaluation.Application.Commands.ProcessTransactionCommand(parsed.TransactionId, parsed.TaxId, parsed.Amount, parsed.Currency));
+                        Result<string> result = await mediator.Send(new Application.Commands.ProcessTransactionCommand(parsed.TransactionId, parsed.TaxId, parsed.Amount, parsed.Currency));
                         if (!result.IsSuccess)
                         {
                             _logger.LogWarning("ProcessTransactionCommand failed: {error}", result.Error);
@@ -117,7 +117,7 @@ public class RabbitMqConsumer(ILogger<RabbitMqConsumer> logger, IConfiguration c
     }
 
     // Parses incoming JSON message and returns a typed object on success, otherwise null
-    private ParsedTransaction? ParseMessage(string message)
+    private static ParsedTransaction? ParseMessage(string message)
     {
         try
         {
@@ -130,14 +130,14 @@ public class RabbitMqConsumer(ILogger<RabbitMqConsumer> logger, IConfiguration c
 
             // Use domain value object for currency
             string currencyCode = currency ?? "BRL";
-            FraudEvaluation.Domain.ValueObjects.Currency currencyVo;
+            Domain.ValueObjects.Currency currencyVo;
             try
             {
-                currencyVo = FraudEvaluation.Domain.ValueObjects.Currency.Create(currencyCode);
+                currencyVo = Domain.ValueObjects.Currency.Create(currencyCode);
             }
             catch
             {
-                currencyVo = FraudEvaluation.Domain.ValueObjects.Currency.Create("BRL");
+                currencyVo = Domain.ValueObjects.Currency.Create("BRL");
             }
 
             return new ParsedTransaction(txId, taxId ?? string.Empty, amount, currencyVo);
@@ -148,20 +148,12 @@ public class RabbitMqConsumer(ILogger<RabbitMqConsumer> logger, IConfiguration c
         }
     }
 
-    private sealed class ParsedTransaction
+    private sealed class ParsedTransaction(Guid transactionId, string taxId, decimal amount, Domain.ValueObjects.Currency currency)
     {
-        public Guid TransactionId { get; }
-        public string TaxId { get; }
-        public decimal Amount { get; }
-        public FraudEvaluation.Domain.ValueObjects.Currency Currency { get; }
+        public Guid TransactionId { get; } = transactionId;
+        public string TaxId { get; } = taxId;
+        public decimal Amount { get; } = amount;
+        public Domain.ValueObjects.Currency Currency { get; } = currency;
         public string CurrencyCode => Currency.Code;
-
-        public ParsedTransaction(Guid transactionId, string taxId, decimal amount, FraudEvaluation.Domain.ValueObjects.Currency currency)
-        {
-            TransactionId = transactionId;
-            TaxId = taxId;
-            Amount = amount;
-            Currency = currency;
-        }
     }
 }

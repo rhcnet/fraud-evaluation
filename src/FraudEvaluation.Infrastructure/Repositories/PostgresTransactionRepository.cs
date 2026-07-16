@@ -171,14 +171,14 @@ WHERE id = @Id";
 
             var param = new
             {
-                Id = entity.Id,
-                IdempotencyKey = entity.IdempotencyKey,
-                Ip = entity.Ip,
-                TaxId = entity.TaxId,
-                Amount = entity.Amount,
+                entity.Id,
+                entity.IdempotencyKey,
+                entity.Ip,
+                entity.TaxId,
+                entity.Amount,
                 Currency = entity.Currency.Code,
-                CreatedAt = entity.CreatedAt,
-                UpdatedAt = entity.UpdatedAt,
+                entity.CreatedAt,
+                entity.UpdatedAt,
                 ValidationStatus = entity.ValidationStatus?.ToString(),
                 TransactionStatus = entity.TransactionStatus.ToString()
             };

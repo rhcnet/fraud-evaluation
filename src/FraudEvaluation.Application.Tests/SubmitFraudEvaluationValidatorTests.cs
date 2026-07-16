@@ -11,7 +11,7 @@ namespace FraudEvaluation.Application.Tests
         [Fact]
         public void Validate_NullCommand_ReturnsValidationFailed()
         {
-            var result = SubmitFraudEvaluationValidator.Validate(null);
+            var result = SubmitFraudEvaluationValidator.Validate(null!);
             Assert.False(result.IsSuccess);
             Assert.Equal(ErrorCode.ValidationFailed, result.Code);
         }

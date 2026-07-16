@@ -35,6 +35,14 @@ namespace FraudEvaluation.Application.Handlers
                     return Result.Ok(new SubmitFraudEvaluationResult(existingId, true));
                 }
             }
+            // If not in cache, check repository for an existing transaction with the same idempotency key
+            var existingTxn = await _repo.GetByIdempotencyKeyAsync(request.IdempotencyKey);
+            if (existingTxn != null)
+            {
+                // populate cache to speed up future checks
+                await _cache.SetAsync(request.IdempotencyKey, existingTxn.Id.ToString(), CacheTtl);
+                return Result.Ok(new SubmitFraudEvaluationResult(existingTxn.Id, true));
+            }
 
             // Create transaction entity
             var entity = new TransactionEntity
